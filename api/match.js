@@ -3,7 +3,8 @@
 // API 키는 Vercel 환경변수 CARD_API_KEY 에만 존재하고 클라이언트로 절대 노출되지 않음.
 export const config = { runtime: "edge" };
 
-const UPSTREAM = "https://card.taba.asia/api/v1/match?limit=3";
+const UPSTREAM = "https://card.taba.asia/api/v1/match";
+const TOP_N = 3;
 
 export default async function handler(req) {
   if (req.method !== "POST") {
@@ -28,6 +29,7 @@ export default async function handler(req) {
 
   const upstreamForm = new FormData();
   upstreamForm.append("image", image, image.name || "upload.jpg");
+  upstreamForm.append("limit", String(TOP_N)); // limit 은 쿼리가 아니라 폼 필드로 받음
 
   let upstream;
   try {

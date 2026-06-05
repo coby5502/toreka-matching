@@ -172,7 +172,7 @@
         if (data.catalog_built === false) {
           return showError("카드 데이터베이스가 아직 준비되지 않았어요.");
         }
-        const items = data.items || [];
+        const items = (data.items || []).slice(0, 3);
         if (items.length === 0) {
           return showError("닮은 토레카를 찾지 못했어요. 다른 사진으로 시도해보세요.");
         }
