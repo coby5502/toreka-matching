@@ -188,10 +188,6 @@
       $("resultList").innerHTML = items.map((it, i) => {
         const pct = Math.round((it.score || 0) * 100);
         const color = (it.member && it.member.color) || "#ec4899";
-        const m = it.market || {};
-        const priceLine = m.avg_jpy
-          ? `평균 ¥${m.avg_jpy.toLocaleString()} · ${m.min_jpy?.toLocaleString()}~${m.max_jpy?.toLocaleString()} · 판매 ${m.sold_count ?? 0}건`
-          : "시세 정보 없음";
         const nameKo = it.member?.name_ko || it.name || "알 수 없음";
         const nameJa = it.member?.name_ja || "";
         const seriesLabel = it.series?.label || "";
@@ -215,12 +211,9 @@
               </div>
               <p class="mt-1.5 font-bold text-slate-800 truncate">${nameKo}</p>
               ${nameJa ? `<p class="text-xs text-slate-400">${nameJa}</p>` : ""}
-              <p class="mt-2 text-xs text-slate-500">${priceLine}</p>
               <div class="flex gap-2 mt-3">
                 ${it.source_url ? `<a href="${it.source_url}" target="_blank"
-                  class="text-xs rounded-full bg-rose-50 text-rose-500 px-3 py-1 hover:bg-rose-100 transition">🛒 메르카리</a>` : ""}
-                ${it.product_url ? `<a href="${it.product_url}" target="_blank"
-                  class="text-xs rounded-full bg-purple-50 text-purple-500 px-3 py-1 hover:bg-purple-100 transition">🏪 공식샵</a>` : ""}
+                  class="text-xs rounded-full bg-rose-50 text-rose-500 px-3 py-1 hover:bg-rose-100 transition">🛒 메르카리에서 보기</a>` : ""}
               </div>
             </div>
           </div>
