@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>닮은 토레카 Top 3</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap');
+    body { font-family: 'Gowun Dodum', system-ui, sans-serif; }
+    .spin { animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .pop { animation: pop 0.45s cubic-bezier(.18,.89,.32,1.28) both; }
+    @keyframes pop { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 text-slate-800">
+
+  <main class="mx-auto max-w-3xl px-4 py-10">
+
+    <!-- 헤더 -->
+    <header class="text-center mb-8">
+      <h1 class="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
+        💖 닮은 토레카 찾기
+      </h1>
+      <p class="mt-2 text-slate-500 text-sm">사진을 올리면 가장 닮은 토레카 Top 3를 보여드려요</p>
+    </header>
+
+    <!-- 업로드 영역 -->
+    <section id="uploader">
+      <label id="dropzone"
+        class="block cursor-pointer rounded-3xl border-2 border-dashed border-pink-300 bg-white/70 backdrop-blur
+               p-10 text-center transition hover:border-pink-400 hover:bg-white">
+        <input id="fileInput" type="file" accept="image/*" class="hidden" />
+        <div class="text-5xl mb-3">📸</div>
+        <p class="font-semibold text-slate-700">사진을 끌어다 놓거나 클릭하세요</p>
+        <p class="text-xs text-slate-400 mt-1">JPEG / PNG · 최대 15MB</p>
+      </label>
+    </section>
+
+    <!-- 미리보기 + 검색 -->
+    <section id="previewSection" class="hidden mt-6">
+      <div class="rounded-3xl bg-white/80 backdrop-blur p-5 shadow-sm">
+        <div class="flex items-center gap-4">
+          <img id="previewImg" class="w-24 h-24 rounded-2xl object-cover ring-2 ring-pink-200" alt="미리보기" />
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold text-slate-700 truncate" id="fileName">선택한 사진</p>
+            <p class="text-xs text-slate-400" id="fileMeta"></p>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-5">
+          <button id="searchBtn"
+            class="flex-1 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold py-3
+                   shadow hover:opacity-90 active:scale-95 transition">
+            🔍 닮은 토레카 찾기
+          </button>
+          <button id="resetBtn"
+            class="rounded-full border border-slate-200 px-5 py-3 text-slate-500 hover:bg-slate-50 transition">
+            다시 선택
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 로딩 -->
+    <section id="loading" class="hidden mt-10 text-center">
+      <div class="inline-block w-10 h-10 rounded-full border-4 border-pink-200 border-t-pink-500 spin"></div>
+      <p class="mt-3 text-slate-500 text-sm">닮은 토레카를 찾는 중이에요...</p>
+    </section>
+
+    <!-- 에러 -->
+    <section id="error" class="hidden mt-8">
+      <div class="rounded-2xl bg-red-50 border border-red-200 text-red-600 px-5 py-4 text-sm text-center">
+        <span id="errorMsg"></span>
+      </div>
+      <div class="text-center mt-4">
+        <button onclick="resetAll()" class="text-sm text-slate-500 underline">처음으로</button>
+      </div>
+    </section>
+
+    <!-- 결과 -->
+    <section id="results" class="hidden mt-8">
+      <h2 class="text-center text-slate-600 font-semibold mb-5">✨ 가장 닮은 토레카 Top 3</h2>
+      <div id="resultList" class="space-y-4"></div>
+      <div class="text-center mt-8">
+        <button onclick="resetAll()"
+          class="rounded-full bg-white border border-pink-200 text-pink-500 font-semibold px-6 py-3
+                 hover:bg-pink-50 transition">
+          🔄 다른 사진으로 다시 찾기
+        </button>
+      </div>
+    </section>
+
+    <footer class="text-center text-xs text-slate-300 mt-12">
+      powered by <a href="https://card.taba.asia" class="underline" target="_blank">Cutie Card</a>
+    </footer>
+  </main>
+
+  <script>
+    // 같은 출처의 서버리스 프록시(/api/match)를 호출 → API 키는 서버(Vercel 환경변수)에만 존재
+    const API_URL = "/api/match";
+
+    const $ = (id) => document.getElementById(id);
+    let selectedFile = null;
+
+    const sections = {
+      uploader: $("uploader"),
+      preview: $("previewSection"),
+      loading: $("loading"),
+      error: $("error"),
+      results: $("results"),
+    };
+
+    function show(...names) {
+      // uploader 는 항상 보이게 두고, 나머지 패널만 토글
+      $("previewSection").classList.toggle("hidden", !names.includes("preview"));
+      $("loading").classList.toggle("hidden", !names.includes("loading"));
+      $("error").classList.toggle("hidden", !names.includes("error"));
+      $("results").classList.toggle("hidden", !names.includes("results"));
+    }
+
+    // ── 파일 선택 ──
+    function handleFile(file) {
+      if (!file || !file.type.startsWith("image/")) {
+        return showError("이미지 파일만 올릴 수 있어요.");
+      }
+      if (file.size > 15 * 1024 * 1024) {
+        return showError("파일이 너무 커요. 15MB 이하로 올려주세요.");
+      }
+      selectedFile = file;
+      $("previewImg").src = URL.createObjectURL(file);
+      $("fileName").textContent = file.name;
+      $("fileMeta").textContent = (file.size / 1024).toFixed(0) + " KB";
+      show("preview");
+    }
+
+    $("fileInput").addEventListener("change", (e) => handleFile(e.target.files[0]));
+
+    // 드래그 앤 드롭
+    const dz = $("dropzone");
+    ["dragover", "dragenter"].forEach((ev) =>
+      dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("border-pink-500", "bg-pink-50"); })
+    );
+    ["dragleave", "drop"].forEach((ev) =>
+      dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("border-pink-500", "bg-pink-50"); })
+    );
+    dz.addEventListener("drop", (e) => handleFile(e.dataTransfer.files[0]));
+
+    // ── 검색 ──
+    $("searchBtn").addEventListener("click", search);
+    $("resetBtn").addEventListener("click", resetAll);
+
+    async function search() {
+      if (!selectedFile) return;
+      show("loading");
+      try {
+        const fd = new FormData();
+        fd.append("image", selectedFile);
+        const res = await fetch(API_URL, {
+          method: "POST",
+          body: fd,
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          return showError("인증에 실패했어요. API 키를 확인해주세요.");
+        }
+        if (!res.ok) {
+          return showError("서버 오류가 발생했어요. (" + res.status + ")");
+        }
+
+        const data = await res.json();
+        if (data.catalog_built === false) {
+          return showError("카드 데이터베이스가 아직 준비되지 않았어요.");
+        }
+        const items = data.items || [];
+        if (items.length === 0) {
+          return showError("닮은 토레카를 찾지 못했어요. 다른 사진으로 시도해보세요.");
+        }
+        renderResults(items);
+      } catch (err) {
+        showError("네트워크 오류가 발생했어요. 포트 3000에서 실행 중인지 확인해주세요.");
+      }
+    }
+
+    // ── 결과 렌더링 ──
+    function renderResults(items) {
+      const medals = ["🥇", "🥈", "🥉"];
+      $("resultList").innerHTML = items.map((it, i) => {
+        const pct = Math.round((it.score || 0) * 100);
+        const color = (it.member && it.member.color) || "#ec4899";
+        const m = it.market || {};
+        const priceLine = m.avg_jpy
+          ? `평균 ¥${m.avg_jpy.toLocaleString()} · ${m.min_jpy?.toLocaleString()}~${m.max_jpy?.toLocaleString()} · 판매 ${m.sold_count ?? 0}건`
+          : "시세 정보 없음";
+        const nameKo = it.member?.name_ko || it.name || "알 수 없음";
+        const nameJa = it.member?.name_ja || "";
+        const seriesLabel = it.series?.label || "";
+
+        return `
+        <div class="pop rounded-3xl bg-white shadow-sm overflow-hidden flex" style="animation-delay:${i * 0.08}s">
+          <div class="w-1.5" style="background:${color}"></div>
+          <div class="flex gap-4 p-4 flex-1 min-w-0">
+            <div class="relative shrink-0">
+              <img src="${it.image_url}" alt="${nameKo}"
+                   class="w-28 h-28 rounded-2xl object-cover ring-1 ring-slate-100 bg-slate-50"
+                   onerror="this.style.opacity=0.3" />
+              <span class="absolute -top-2 -left-2 text-2xl">${medals[i] || ""}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-white px-2 py-0.5 rounded-full" style="background:${color}">
+                  ${pct}% 일치
+                </span>
+                ${seriesLabel ? `<span class="text-xs text-slate-400">${seriesLabel}</span>` : ""}
+              </div>
+              <p class="mt-1.5 font-bold text-slate-800 truncate">${nameKo}</p>
+              ${nameJa ? `<p class="text-xs text-slate-400">${nameJa}</p>` : ""}
+              <p class="mt-2 text-xs text-slate-500">${priceLine}</p>
+              <div class="flex gap-2 mt-3">
+                ${it.source_url ? `<a href="${it.source_url}" target="_blank"
+                  class="text-xs rounded-full bg-rose-50 text-rose-500 px-3 py-1 hover:bg-rose-100 transition">🛒 메르카리</a>` : ""}
+                ${it.product_url ? `<a href="${it.product_url}" target="_blank"
+                  class="text-xs rounded-full bg-purple-50 text-purple-500 px-3 py-1 hover:bg-purple-100 transition">🏪 공식샵</a>` : ""}
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }).join("");
+      show("results");
+    }
+
+    // ── 상태 헬퍼 ──
+    function showError(msg) {
+      $("errorMsg").textContent = msg;
+      show("error");
+    }
+
+    function resetAll() {
+      selectedFile = null;
+      $("fileInput").value = "";
+      show(); // 모든 패널 숨김 → 업로더만 남음
+    }
+  </script>
+</body>
+</html>
