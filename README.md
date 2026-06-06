@@ -5,7 +5,7 @@
 ## 구조
 
 - `index.html` — 단일 페이지 프론트엔드 (Tailwind CDN + 바닐라 JS)
-- `api/match.js` — Vercel 서버리스 프록시 (Edge). API 키를 서버에 숨기고 `card.taba.asia/api/identify`(시세 조회 없는 가벼운 매칭) 호출 후, 멤버 한글이름·컬러·절대 이미지 URL 로 보강해서 Top 3 반환
+- `api/match.js` — Vercel 서버리스 프록시 (Edge). API 키를 서버에 숨기고 `card.taba.asia/api/v1/match`(**본인 컬렉션 DB** 기준 유사도 매칭) 호출, 응답 `items[].card`를 정규화해 Top 3 반환. 멤버/시리즈 메타·이미지 URL이 인라인이라 추가 조회 없음
 
 브라우저는 같은 출처의 `/api/match`만 호출하므로 API 키가 클라이언트로 노출되지 않음.
 

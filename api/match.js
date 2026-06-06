@@ -1,29 +1,12 @@
 // Vercel 서버리스 프록시 (Edge Runtime)
-// 브라우저 → /api/match → (X-API-Key 부착) → card.taba.asia/api/identify
-// 시세 조회 없는 가벼운 엔드포인트를 써서 빠름(≈4s) + 504 방지.
-// 멤버 key 를 한글이름·컬러로, 상대 이미지경로를 절대 URL 로 보강해서 내려줌.
+// 브라우저 → /api/match → (X-API-Key 부착) → card.taba.asia/api/v1/match
+// 마스터 카탈로그가 아니라 "본인 컬렉션 DB" 안에서 유사도 Top N 매칭.
+// 멤버/시리즈 메타·절대 이미지 URL 이 응답 card 에 인라인이라 추가 조회 불필요.
 // API 키는 Vercel 환경변수 CARD_API_KEY 에만 존재하고 클라이언트로 절대 노출되지 않음.
 export const config = { runtime: "edge" };
 
-const BASE = "https://card.taba.asia";
-const IDENTIFY = `${BASE}/api/identify`;
-const MEMBERS = `${BASE}/api/members`;
+const UPSTREAM = "https://card.taba.asia/api/v1/match";
 const TOP_N = 3;
-
-let _membersCache = null; // 워밍된 isolate 에서 재사용
-
-async function getMembers(key) {
-  if (_membersCache) return _membersCache;
-  try {
-    const r = await fetch(MEMBERS, { headers: { "X-API-Key": key } });
-    if (!r.ok) return {};
-    const list = await r.json();
-    _membersCache = Object.fromEntries(list.map((m) => [m.key, m]));
-    return _membersCache;
-  } catch {
-    return {};
-  }
-}
 
 export default async function handler(req) {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -40,44 +23,46 @@ export default async function handler(req) {
   }
   if (!image) return json({ error: "image field required" }, 400);
 
-  const upstreamForm = new FormData();
-  upstreamForm.append("image", image, image.name || "upload.jpg");
-
-  let identify, members;
-  try {
-    [identify, members] = await Promise.all([
-      fetch(IDENTIFY, { method: "POST", headers: { "X-API-Key": key }, body: upstreamForm }),
-      getMembers(key),
-    ]);
-  } catch {
-    return json({ error: "upstream fetch failed" }, 502);
+  // 업스트림 호출 (일시적 502/503 대비 1회 재시도)
+  let upstream;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const upstreamForm = new FormData();
+    upstreamForm.append("image", image, image.name || "upload.jpg");
+    upstreamForm.append("limit", String(TOP_N)); // limit 은 폼 필드
+    try {
+      upstream = await fetch(UPSTREAM, { method: "POST", headers: { "X-API-Key": key }, body: upstreamForm });
+    } catch {
+      if (attempt === 1) return json({ error: "upstream fetch failed" }, 502);
+      continue;
+    }
+    if (upstream.status === 401 || upstream.status === 403) return json({ error: "unauthorized" }, 401);
+    if (upstream.ok) break;
+    if (attempt === 1) return json({ error: `upstream ${upstream.status}` }, 502);
+    // 재시도 전 짧게 대기
+    await new Promise((r) => setTimeout(r, 600));
   }
 
-  if (!identify.ok) {
-    return json({ error: `upstream ${identify.status}` }, identify.status === 401 ? 401 : 502);
-  }
+  const data = await upstream.json();
 
-  const data = await identify.json();
-  const matches = (data.matches || []).slice(0, TOP_N);
-
-  const items = matches.map((m, i) => {
-    const mem = members[m.member] || {};
+  const items = (data.items || []).slice(0, TOP_N).map((it, i) => {
+    const c = it.card || {};
+    const mem = c.member || {};
     return {
-      rank: i + 1,
-      score: m.score,
+      rank: it.rank ?? i + 1,
+      score: it.score,
       member: {
-        key: m.member,
-        name_ko: mem.name_ko || m.member,
+        key: mem.key || c.member_id || "",
+        name_ko: mem.name_ko || "",
         name_ja: mem.name_ja || "",
-        color: mem.color || "#ec4899",
+        color: mem.color || "#FF4FD8",
       },
-      series: { sku: m.series_sku, label: m.series_label || "" },
-      image_url: m.sample_url ? BASE + m.sample_url : null,
-      source_url: m.source_url || null,
+      series: { sku: c.series?.sku || c.item_code || "", label: c.series?.label || "" },
+      image_url: c.image_url || null,   // 본인 컬렉션 사진 (이미 절대 URL)
+      source_url: c.source_url || null,
     };
   });
 
-  return json({ catalog_built: data.catalog_built !== false, items }, 200);
+  return json({ catalog_built: true, items }, 200);
 }
 
 function json(obj, status) {
