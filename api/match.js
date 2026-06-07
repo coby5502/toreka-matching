@@ -56,9 +56,14 @@ export default async function handler(req) {
         name_ja: mem.name_ja || "",
         color: mem.color || "#FF4FD8",
       },
-      series: { sku: c.series?.sku || c.item_code || "", label: c.series?.label || "" },
-      image_url: c.image_url || null,   // 본인 컬렉션 사진 (이미 절대 URL)
-      source_url: c.source_url || null,
+      series: { sku: c.series?.sku || c.item_code || "", kind: c.series?.kind || c.item_type || "", label: c.series?.label || "" },
+      name: c.name || "",
+      description: c.description || "",
+      // 본인 컬렉션 사진 (이미 절대 URL)
+      image_url: c.image_url || null,
+      back_image_url: c.back_image_url || null,
+      reference_image_url: c.reference_image_url || null,
+      created_at: c.created_at || null,
     };
   });
 
