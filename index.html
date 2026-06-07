@@ -135,9 +135,22 @@
     .detail.show{ display:block; }
     .dback{ margin-bottom:14px; }
     .dcard{ overflow:hidden; }
-    .dhero{ display:grid; place-items:center; padding:22px; }
-    .dimg{ width:100%; max-width:300px; border-radius:18px; border:3px solid var(--ink);
-           box-shadow:var(--shadow); background:#f3eaff; }
+    .dhero{ display:grid; place-items:center; padding:24px 24px 52px; }
+    /* 플립 카드 */
+    .flip{ position:relative; width:100%; max-width:270px; aspect-ratio:3/4; cursor:pointer; perspective:1100px; }
+    .flip.noback{ cursor:default; }
+    .flip-inner{ position:absolute; inset:0; transform-style:preserve-3d;
+                 transition:transform .65s cubic-bezier(.2,.7,.3,1.35); }
+    .flip.flipped .flip-inner{ transform:rotateY(180deg); }
+    .flip-face{ position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+                border:3px solid var(--ink); border-radius:18px; box-shadow:var(--shadow);
+                overflow:hidden; background:#f3eaff; }
+    .flip-face img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .flip-back{ transform:rotateY(180deg); }
+    .face-tag{ position:absolute; top:8px; left:8px; z-index:2; color:#fff; font-size:11px;
+               padding:2px 10px; border:2px solid var(--ink); border-radius:999px; box-shadow:2px 2px 0 var(--ink); }
+    .flip-hint{ position:absolute; bottom:-30px; left:0; right:0; text-align:center; font-size:12px; color:#7a5a93; }
+    .flip.noback .flip-hint{ display:none; }
     .dbody{ padding:18px; border-top:3px solid var(--ink); }
     .dname{ font-size:26px; margin:10px 0 2px; }
     .ddesc{ font-size:13px; color:#7a5a93; margin:12px 0 0; line-height:1.5; }
@@ -250,7 +263,7 @@
         similarity: "닮음 점수",
         frontLabel: "앞면",
         backLabel: "뒷면",
-        refLabel: "레퍼런스",
+        flipHint: "탭하면 뒤집기",
         registered: "등록일",
         againBtn: "🔄 다른 사진으로 다시",
         backToStart: "처음으로",
@@ -277,7 +290,7 @@
         similarity: "類似度スコア",
         frontLabel: "表",
         backLabel: "裏",
-        refLabel: "リファレンス",
+        flipHint: "タップで裏返す",
         registered: "登録日",
         againBtn: "🔄 別の写真でもう一度",
         backToStart: "最初に戻る",
@@ -424,14 +437,25 @@
       const nameSub = memberName(it, "sub");
       const series = it.series?.label || "";
       const created = it.created_at ? new Date(it.created_at).toLocaleDateString(lang === "ja" ? "ja-JP" : "ko-KR") : "";
-      const thumb = (url, label) => url
-        ? `<figure class="thumb"><img src="${url}" alt="${label}" onerror="this.closest('figure').style.display='none'"/><figcaption>${label}</figcaption></figure>`
-        : "";
+      const hasBack = !!it.back_image_url;
       $("detail").innerHTML = `
         <button class="btn btn-ghost display dback" onclick="closeDetail()">${t("detailBack")}</button>
         <div class="sticker dcard">
           <div class="dhero" style="background:${color}1a">
-            <img class="dimg" src="${it.image_url}" alt="${nameMain}" onerror="this.style.opacity=.3"/>
+            <div class="flip${hasBack ? "" : " noback"}" style="--card:${color}" onclick="flipCard(this)">
+              <div class="flip-inner">
+                <div class="flip-face flip-front">
+                  <span class="face-tag" style="background:${color}">${t("frontLabel")}</span>
+                  <img src="${it.image_url}" alt="${nameMain}" onload="fitFlip(this)" onerror="this.style.opacity=.3" />
+                </div>
+                ${hasBack ? `
+                <div class="flip-face flip-back">
+                  <span class="face-tag" style="background:${color}">${t("backLabel")}</span>
+                  <img src="${it.back_image_url}" alt="${t("backLabel")}" onerror="this.closest('.flip').classList.add('noback')" />
+                </div>` : ""}
+              </div>
+              ${hasBack ? `<span class="flip-hint">↻ ${t("flipHint")}</span>` : ""}
+            </div>
           </div>
           <div class="dbody">
             <span class="badge" style="background:${color}">${pct}%</span>
@@ -443,15 +467,19 @@
               <b style="color:${color}">${pct}%</b>
             </div>
             ${it.description ? `<p class="ddesc">${it.description}</p>` : ""}
-            <div class="thumbs">
-              ${thumb(it.image_url, t("frontLabel"))}
-              ${thumb(it.back_image_url, t("backLabel"))}
-              ${thumb(it.reference_image_url, t("refLabel"))}
-            </div>
             ${created ? `<p class="dmeta">${t("registered")}: ${created}</p>` : ""}
           </div>
         </div>`;
       show("detail");
+    }
+
+    // 플립 카드: 뒷면 있을 때만 뒤집기
+    function flipCard(el) { if (!el.classList.contains("noback")) el.classList.toggle("flipped"); }
+    // 앞면 이미지 비율에 맞춰 카드 박스 비율 조정 (잘림 없이)
+    function fitFlip(img) {
+      if (img.naturalWidth && img.naturalHeight) {
+        img.closest(".flip").style.aspectRatio = img.naturalWidth + " / " + img.naturalHeight;
+      }
     }
 
     function closeDetail() { detailIdx = null; show("results"); }
