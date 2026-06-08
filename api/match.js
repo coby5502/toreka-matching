@@ -6,7 +6,7 @@
 export const config = { runtime: "edge" };
 
 const UPSTREAM = "https://card.taba.asia/api/v1/match";
-const TOP_N = 3;
+const TOP_N = 10;
 
 export default async function handler(req) {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
