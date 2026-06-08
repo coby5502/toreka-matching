@@ -118,7 +118,7 @@
     .rcard .imgwrap{ position:relative; flex:0 0 auto; }
     .rcard img.card{ width:96px; height:96px; border-radius:18px; object-fit:cover; border:3px solid var(--ink);
                      background:#f3eaff; transform:rotate(-3deg); }
-    .rcard .medal{ position:absolute; top:-12px; left:-12px; font-size:30px; filter:drop-shadow(1px 1px 0 var(--ink)); }
+    .rcard .medal{ position:absolute; z-index:4; top:-12px; left:-12px; font-size:30px; filter:drop-shadow(1px 1px 0 var(--ink)); }
     .rcard .medal.num{ font-size:14px; color:#fff; width:28px; height:28px; border-radius:50%;
                        border:3px solid var(--ink); display:grid; place-items:center;
                        box-shadow:2px 2px 0 var(--ink); filter:none; top:-10px; left:-10px; }
@@ -443,7 +443,6 @@
       const nameMain = memberName(it, "main");
       const nameSub = memberName(it, "sub");
       const series = it.series?.label || "";
-      const created = it.created_at ? new Date(it.created_at).toLocaleDateString(lang === "ja" ? "ja-JP" : "ko-KR") : "";
       const hasBack = !!it.back_image_url;
       $("detail").innerHTML = `
         <button class="btn btn-ghost display dback" onclick="closeDetail()">${t("detailBack")}</button>
@@ -474,7 +473,6 @@
               <b style="color:${color}">${pct}%</b>
             </div>
             ${it.description ? `<p class="ddesc">${it.description}</p>` : ""}
-            ${created ? `<p class="dmeta">${t("registered")}: ${created}</p>` : ""}
           </div>
         </div>`;
       show("detail");
