@@ -81,7 +81,7 @@
 
     /* 버튼 */
     .btn{ font-family:inherit; cursor:pointer; border:3px solid var(--ink); border-radius:999px;
-          box-shadow:var(--shadow); transition:transform .08s, box-shadow .08s; }
+          box-shadow:var(--shadow); transition:transform .08s, box-shadow .08s; white-space:nowrap; }
     .btn:active{ transform:translate(4px,4px); box-shadow:0 0 0 var(--ink); }
     .btn-primary{ background:linear-gradient(180deg,var(--hotpink),var(--purple)); color:#fff;
                   font-size:18px; padding:14px; width:100%; }
@@ -131,7 +131,7 @@
     .mlink{ display:inline-block; margin-top:10px; font-size:12px; text-decoration:none; color:#fff;
             background:var(--purple); border:2px solid var(--ink); border-radius:999px; padding:4px 12px;
             box-shadow:2px 2px 0 var(--ink); }
-    .again{ display:block; margin:24px auto 0; }
+    .again{ display:block; width:100%; max-width:360px; margin:24px auto 0; padding-left:22px; padding-right:22px; }
 
     /* 상세 */
     .detail{ display:none; margin-top:14px; animation:pop .35s cubic-bezier(.18,.89,.32,1.28) both; }
@@ -241,7 +241,7 @@
     <div id="results" class="results">
       <h2 class="display" data-i18n="resultsTitle"></h2>
       <div id="resultList"></div>
-      <button class="btn btn-primary again display" style="max-width:280px" onclick="resetAll()" data-i18n="againBtn"></button>
+      <button class="btn btn-primary again display" onclick="resetAll()" data-i18n="againBtn"></button>
     </div>
 
     <!-- 상세 -->
